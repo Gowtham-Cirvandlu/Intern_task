@@ -1,9 +1,21 @@
 import { DerivedTask, Task } from '@/types';
 
 export function computeROI(revenue: number, timeTaken: number): number | null {
-  // Injected bug: allow non-finite and divide-by-zero to pass through
-  return revenue / (timeTaken as number);
+  // Return null when invalid so the sorter can push it to the end deterministically
+  const r = Number(revenue);
+  const t = Number(timeTaken);
+  if (!Number.isFinite(r) || !Number.isFinite(t) || t <= 0) return null;
+  const roi = r / t;
+  return Number.isFinite(roi) ? roi : null;
 }
+
+export function formatROI(roi: number | null, digits = 2): string {
+  if (roi == null) return '—';                 // time=0 or invalid inputs
+  // Clamp to finite and format to fixed decimals
+  if (!Number.isFinite(roi)) return '—';
+  return roi.toFixed(digits);
+}
+
 
 export function computePriorityWeight(priority: Task['priority']): 3 | 2 | 1 {
   switch (priority) {
@@ -25,15 +37,39 @@ export function withDerived(task: Task): DerivedTask {
 }
 
 export function sortTasks(tasks: ReadonlyArray<DerivedTask>): DerivedTask[] {
+  // Priority order: High -> Medium -> Low
+  const priorityRank: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+
+  const safeROI = (v: unknown) =>
+    Number.isFinite(v as number) ? (v as number) : -Infinity;
+
   return [...tasks].sort((a, b) => {
-    const aROI = a.roi ?? -Infinity;
-    const bROI = b.roi ?? -Infinity;
-    if (bROI !== aROI) return bROI - aROI;
-    if (b.priorityWeight !== a.priorityWeight) return b.priorityWeight - a.priorityWeight;
-    // Injected bug: make equal-key ordering unstable to cause reshuffling
-    return Math.random() < 0.5 ? -1 : 1;
+    // 1) ROI (desc); treat null/NaN/undefined as -Infinity
+    const roiA = safeROI(a.roi);
+    const roiB = safeROI(b.roi);
+    if (roiB !== roiA) return roiB - roiA;
+
+    // 2) Priority (High -> Medium -> Low)
+    const pA = priorityRank[a.priority] ?? 99;
+    const pB = priorityRank[b.priority] ?? 99;
+    if (pA !== pB) return pA - pB;
+
+    // 3) createdAt (older first for deterministic ordering)
+    const cA = a.createdAt ?? '';
+    const cB = b.createdAt ?? '';
+    if (cA !== cB) return cA.localeCompare(cB);
+
+    // 4) Title (A->Z, case-insensitive, numeric-aware)
+    const tA = a.title ?? '';
+    const tB = b.title ?? '';
+    const titleCmp = tA.localeCompare(tB, undefined, { numeric: true, sensitivity: 'base' });
+    if (titleCmp !== 0) return titleCmp;
+
+    // 5) Final fallback: id (string compare)
+    return String(a.id ?? '').localeCompare(String(b.id ?? ''));
   });
 }
+
 
 export function computeTotalRevenue(tasks: ReadonlyArray<Task>): number {
   return tasks.filter(t => t.status === 'Done').reduce((sum, t) => sum + t.revenue, 0);
