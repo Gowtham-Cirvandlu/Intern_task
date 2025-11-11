@@ -1,10 +1,29 @@
 import { DerivedTask, Task } from "@/types";
 
+/* -------------------------------------------------------------------------- */
+/*                               ROI & Priority                               */
+/* -------------------------------------------------------------------------- */
+
+// ✅ FIXED: Safe ROI calculation
 export function computeROI(revenue: number, timeTaken: number): number | null {
-  // Safe ROI: prevent divide-by-zero & non-finite values
-  if (!Number.isFinite(revenue) || !Number.isFinite(timeTaken) || timeTaken <= 0)
+  // Handle invalid, missing, or zero inputs
+  if (
+    revenue == null ||
+    timeTaken == null ||
+    !Number.isFinite(revenue) ||
+    !Number.isFinite(timeTaken) ||
+    timeTaken <= 0
+  ) {
     return 0;
-  return revenue / timeTaken;
+  }
+
+  const roi = revenue / timeTaken;
+
+  // Handle NaN / Infinity or negative ROI
+  if (!Number.isFinite(roi) || roi < 0) return 0;
+
+  // Return rounded ROI with 2 decimals
+  return Number(roi.toFixed(2));
 }
 
 export function computePriorityWeight(priority: Task["priority"]): 3 | 2 | 1 {
@@ -26,51 +45,58 @@ export function withDerived(task: Task): DerivedTask {
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                Sorting Logic                               */
+/* -------------------------------------------------------------------------- */
+
+// ✅ FIXED: Deterministic sorting (ROI → Priority → Title → CreatedAt)
 export function sortTasks(tasks: ReadonlyArray<DerivedTask>): DerivedTask[] {
   return [...tasks].sort((a, b) => {
-    const aROI = a.roi ?? -Infinity;
-    const bROI = b.roi ?? -Infinity;
+    const aROI = a.roi ?? 0;
+    const bROI = b.roi ?? 0;
 
-    // Primary sort: ROI (desc)
+    // Primary: ROI descending
     if (bROI !== aROI) return bROI - aROI;
 
     // Secondary: Priority (High > Medium > Low)
     if (b.priorityWeight !== a.priorityWeight)
       return b.priorityWeight - a.priorityWeight;
 
-    // ✅ Stable tie-breaker: Title A→Z, fallback to createdAt desc
+    // Tie-breaker: Alphabetical by title
     const titleCompare = a.title.localeCompare(b.title);
     if (titleCompare !== 0) return titleCompare;
 
-    // If titles equal, compare createdAt (newer first)
+    // Final fallback: Recent first
     const aTime = new Date(a.createdAt).getTime();
     const bTime = new Date(b.createdAt).getTime();
     return bTime - aTime;
   });
 }
 
-// ---------------- Metrics ----------------
+/* -------------------------------------------------------------------------- */
+/*                                  Metrics                                   */
+/* -------------------------------------------------------------------------- */
 
 export function computeTotalRevenue(tasks: ReadonlyArray<Task>): number {
   return tasks
     .filter((t) => t.status === "Done")
-    .reduce((sum, t) => sum + t.revenue, 0);
+    .reduce((sum, t) => sum + (t.revenue || 0), 0);
 }
 
 export function computeTotalTimeTaken(tasks: ReadonlyArray<Task>): number {
-  return tasks.reduce((sum, t) => sum + t.timeTaken, 0);
+  return tasks.reduce((sum, t) => sum + (t.timeTaken || 0), 0);
 }
 
 export function computeTimeEfficiency(tasks: ReadonlyArray<Task>): number {
   if (tasks.length === 0) return 0;
   const done = tasks.filter((t) => t.status === "Done").length;
-  return (done / tasks.length) * 100;
+  return Number(((done / tasks.length) * 100).toFixed(2));
 }
 
 export function computeRevenuePerHour(tasks: ReadonlyArray<Task>): number {
   const revenue = computeTotalRevenue(tasks);
   const time = computeTotalTimeTaken(tasks);
-  return time > 0 ? revenue / time : 0;
+  return time > 0 ? Number((revenue / time).toFixed(2)) : 0;
 }
 
 export function computeAverageROI(tasks: ReadonlyArray<Task>): number {
@@ -78,10 +104,12 @@ export function computeAverageROI(tasks: ReadonlyArray<Task>): number {
     .map((t) => computeROI(t.revenue, t.timeTaken))
     .filter(
       (v): v is number =>
-        typeof v === "number" && Number.isFinite(v) && v > 0
+        typeof v === "number" && Number.isFinite(v) && v >= 0
     );
+
   if (rois.length === 0) return 0;
-  return rois.reduce((s, r) => s + r, 0) / rois.length;
+  const avg = rois.reduce((s, r) => s + r, 0) / rois.length;
+  return Number(avg.toFixed(2));
 }
 
 export function computePerformanceGrade(
@@ -92,7 +120,9 @@ export function computePerformanceGrade(
   return "Needs Improvement";
 }
 
-// ---- Advanced analytics ----
+/* -------------------------------------------------------------------------- */
+/*                             Advanced Analytics                             */
+/* -------------------------------------------------------------------------- */
 
 export type FunnelCounts = {
   todo: number;
@@ -106,11 +136,13 @@ export function computeFunnel(tasks: ReadonlyArray<Task>): FunnelCounts {
   const todo = tasks.filter((t) => t.status === "Todo").length;
   const inProgress = tasks.filter((t) => t.status === "In Progress").length;
   const done = tasks.filter((t) => t.status === "Done").length;
-  const baseTodo = todo + inProgress + done;
-  const conversionTodoToInProgress = baseTodo
-    ? (inProgress + done) / baseTodo
+  const base = todo + inProgress + done;
+
+  const conversionTodoToInProgress = base
+    ? (inProgress + done) / base
     : 0;
   const conversionInProgressToDone = inProgress ? done / inProgress : 0;
+
   return {
     todo,
     inProgress,
@@ -138,12 +170,14 @@ export function computeVelocityByPriority(
     if (t.completedAt)
       groups[t.priority].push(daysBetween(t.createdAt, t.completedAt));
   });
+
   const stats: Record<Task["priority"], { avgDays: number; medianDays: number }> =
     {
       High: { avgDays: 0, medianDays: 0 },
       Medium: { avgDays: 0, medianDays: 0 },
       Low: { avgDays: 0, medianDays: 0 },
     };
+
   (Object.keys(groups) as Task["priority"][]).forEach((k) => {
     const arr = groups[k].slice().sort((a, b) => a - b);
     const avg = arr.length
@@ -154,6 +188,10 @@ export function computeVelocityByPriority(
   });
   return stats;
 }
+
+/* -------------------------------------------------------------------------- */
+/*                              Weekly Throughput                             */
+/* -------------------------------------------------------------------------- */
 
 export function computeThroughputByWeek(
   tasks: ReadonlyArray<Task>
@@ -184,10 +222,14 @@ function getWeekNumber(d: Date): number {
   return 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
 }
 
+/* -------------------------------------------------------------------------- */
+/*                             Weighted & Forecast                            */
+/* -------------------------------------------------------------------------- */
+
 export function computeWeightedPipeline(tasks: ReadonlyArray<Task>): number {
-  const p = { Todo: 0.1, "In Progress": 0.5, Done: 1 } as const;
+  const weights = { Todo: 0.1, "In Progress": 0.5, Done: 1 } as const;
   return tasks.reduce(
-    (s, t) => s + t.revenue * (p[t.status] as number),
+    (sum, t) => sum + t.revenue * (weights[t.status] ?? 0),
     0
   );
 }
@@ -218,6 +260,10 @@ export function computeForecast(
   }
   return result;
 }
+
+/* -------------------------------------------------------------------------- */
+/*                               Cohort Revenue                               */
+/* -------------------------------------------------------------------------- */
 
 export function computeCohortRevenue(
   tasks: ReadonlyArray<Task>
