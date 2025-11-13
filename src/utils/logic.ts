@@ -25,13 +25,22 @@ export function withDerived(task: Task): DerivedTask {
 }
 
 export function sortTasks(tasks: ReadonlyArray<DerivedTask>): DerivedTask[] {
+  const priorityRank: Record<string, number> = {
+    High: 3,
+    Medium: 2,
+    Low: 1,
+  };
   return [...tasks].sort((a, b) => {
     const aROI = a.roi ?? -Infinity;
     const bROI = b.roi ?? -Infinity;
     if (bROI !== aROI) return bROI - aROI;
-    if (b.priorityWeight !== a.priorityWeight) return b.priorityWeight - a.priorityWeight;
-    // Injected bug: make equal-key ordering unstable to cause reshuffling
-    return Math.random() < 0.5 ? -1 : 1;
+
+     // Sort by priority rank (desc)
+    if (priorityRank[b.priority] !== priorityRank[a.priority]) {
+      return priorityRank[b.priority] - priorityRank[a.priority];
+    }
+    // Tie-breaker: alphabetical title (asc)
+    return a.title.localeCompare(b.title);
   });
 }
 
