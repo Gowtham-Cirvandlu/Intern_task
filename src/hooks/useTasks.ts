@@ -69,27 +69,41 @@ export function useTasks(): UseTasksState {
   // Initial load: public JSON -> fallback generated dummy
   useEffect(() => {
     if (fetchedRef.current) return;
-    fetchedRef.current = true;
     let isMounted = true;
+
     async function load() {
       try {
         const res = await fetch("/tasks.json");
-        if (!res.ok)
+        if (!res.ok) {
           throw new Error(`Failed to load tasks.json (${res.status})`);
+        }
         const data = (await res.json()) as any[];
         const normalized: Task[] = normalizeTasks(data);
-        let finalData =
+
+        const finalData =
           normalized.length > 0 ? normalized : generateSalesTasks(50);
 
-        if (isMounted) setTasks(finalData);
+        if (isMounted) {
+          setTasks(finalData);
+
+          if (normalized.length === 0 && data.length > 0) {
+            setError("Some tasks were invalid and skipped");
+          }
+        }
       } catch (e: any) {
-        if (isMounted) setError(e?.message ?? "Failed to load tasks");
+        const fallbackData = generateSalesTasks(50);
+        if (isMounted) {
+          setTasks(fallbackData);
+          setError(e?.message ?? "Failed to load tasks, using sample data");
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
+          fetchedRef.current = true;
         }
       }
     }
+
     load();
     return () => {
       isMounted = false;
