@@ -19,8 +19,12 @@ import {
 } from '@/utils/logic';
 
 function AppContent() {
-  const { loading, error, metrics, derivedSorted, addTask, updateTask, deleteTask, undoDelete, lastDeleted } = useTasksContext();
-  const handleCloseUndo = () => {};
+  const { loading, error, metrics, derivedSorted, addTask, updateTask, deleteTask, undoDelete, lastDeleted, clearLastDeleted } = useTasksContext();
+  const handleCloseUndo = useCallback(() => {
+    clearLastDeleted(); // ✅ clear the deleted task when snackbar closes
+    console.log("[DEBUG] Snackbar closed — lastDeleted cleared");
+  }, [clearLastDeleted]);
+  
   const [q, setQ] = useState('');
   const [fStatus, setFStatus] = useState<string>('All');
   const [fPriority, setFPriority] = useState<string>('All');
@@ -142,5 +146,4 @@ export default function App() {
     </UserProvider>
   );
 }
-
 
