@@ -23,16 +23,18 @@ export function withDerived(task: Task): DerivedTask {
     priorityWeight: computePriorityWeight(task.priority),
   };
 }
-
 export function sortTasks(tasks: ReadonlyArray<DerivedTask>): DerivedTask[] {
   return [...tasks].sort((a, b) => {
-    const aROI = a.roi ?? -Infinity;
-    const bROI = b.roi ?? -Infinity;
-    if (bROI !== aROI) return bROI - aROI;
-    if (b.priorityWeight !== a.priorityWeight)
-      return b.priorityWeight - a.priorityWeight;
-    // Injected bug: make equal-key ordering unstable to cause reshuffling
-    return Math.random() < 0.5 ? -1 : 1;
+    const roiDiff = (b.roi ?? -Infinity) - (a.roi ?? -Infinity);
+    if (roiDiff !== 0) return roiDiff;
+
+    const priorityDiff = b.priorityWeight - a.priorityWeight;
+    if (priorityDiff !== 0) return priorityDiff;
+
+    const createdDiff = a.createdAt.localeCompare(b.createdAt);
+    if (createdDiff !== 0) return createdDiff;
+
+    return a.id.localeCompare(b.id);
   });
 }
 
