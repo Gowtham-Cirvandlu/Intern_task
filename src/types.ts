@@ -1,5 +1,5 @@
-export type Priority = 'High' | 'Medium' | 'Low';
-export type Status = 'Todo' | 'In Progress' | 'Done';
+export type Priority = "High" | "Medium" | "Low";
+export type Status = "Todo" | "In Progress" | "Done";
 
 export interface Task {
   id: string;
@@ -24,7 +24,5 @@ export interface Metrics {
   timeEfficiencyPct: number; // 0..100
   revenuePerHour: number; // may be NaN/Infinity -> handle in UI
   averageROI: number; // average over valid ROI values
-  performanceGrade: 'Excellent' | 'Good' | 'Needs Improvement';
+  performanceGrade: "Excellent" | "Good" | "Needs Improvement";
 }
-
-
