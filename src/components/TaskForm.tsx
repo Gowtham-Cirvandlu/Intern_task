@@ -89,6 +89,10 @@ export default function TaskForm({
       priority: (priority || "Medium") as Priority,
       status: (status || "Todo") as Status,
       notes: notes.trim() || undefined,
+      createdAt: initial?.createdAt ?? new Date().toISOString(),
+      completedAt:
+        initial?.completedAt ??
+        ((status || "Todo") === "Done" ? new Date().toISOString() : undefined),
       ...(initial ? { id: initial.id } : {}),
     };
     onSubmit(payload);
