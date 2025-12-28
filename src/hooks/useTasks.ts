@@ -100,7 +100,23 @@ export function useTasks(): UseTasksState {
 
   const derivedSorted = useMemo<DerivedTask[]>(() => {
     const withRoi = tasks.map(withDerived);
-    return sortDerived(withRoi);
+    
+    // stable sorting
+    return withRoi.sort((a,b) =>{
+      //1. ROI descending
+      const roiA = a.roi ?? 0;
+      const roiB = b.roi ?? 0;
+      if (roiB !== roiA) return roiB - roiA;
+      
+      //2. Priority descending (High > Medium > Low)
+      const priorityValue = (p: string) =>
+      (p === 'High' ? 3 : p === 'Medium' ? 2 : 1);
+
+      if(a.priority !== b.priority) return priorityValue(b.priority) - priorityValue(a.priority);
+
+      //3.Tie-breacker: creatdAt ascending
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    })
   }, [tasks]);
 
   const metrics = useMemo<Metrics>(() => {
