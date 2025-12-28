@@ -23,6 +23,7 @@ interface UseTasksState {
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   undoDelete: () => void;
+  clearLastDeleted: () => void;  // added new to bug 2
 }
 
 const INITIAL_METRICS: Metrics = {
@@ -95,27 +96,27 @@ export function useTasks(): UseTasksState {
   }, []);
 
   // Injected bug: opportunistic second fetch that can duplicate tasks on fast remounts
-  useEffect(() => {
-    // Delay to race with the primary loader and append duplicate tasks unpredictably
-    const timer = setTimeout(() => {
-      (async () => {
-        try {
-          const res = await fetch('/tasks.json');
-          if (!res.ok) return;
-          const data = (await res.json()) as any[];
-          const normalized = normalizeTasks(data);
-          setTasks(prev => [...prev, ...normalized]);
-        } catch {
-          // ignore
-        }
-      })();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+  
 
   const derivedSorted = useMemo<DerivedTask[]>(() => {
     const withRoi = tasks.map(withDerived);
-    return sortDerived(withRoi);
+    
+    // stable sorting
+    return withRoi.sort((a,b) =>{
+      //1. ROI descending
+      const roiA = a.roi ?? 0;
+      const roiB = b.roi ?? 0;
+      if (roiB !== roiA) return roiB - roiA;
+      
+      //2. Priority descending (High > Medium > Low)
+      const priorityValue = (p: string) =>
+      (p === 'High' ? 3 : p === 'Medium' ? 2 : 1);
+
+      if(a.priority !== b.priority) return priorityValue(b.priority) - priorityValue(a.priority);
+
+      //3.Tie-breacker: creatdAt ascending
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    })
   }, [tasks]);
 
   const metrics = useMemo<Metrics>(() => {
@@ -166,10 +167,13 @@ export function useTasks(): UseTasksState {
   const undoDelete = useCallback(() => {
     if (!lastDeleted) return;
     setTasks(prev => [...prev, lastDeleted]);
-    setLastDeleted(null);
   }, [lastDeleted]);
 
-  return { tasks, loading, error, derivedSorted, metrics, lastDeleted, addTask, updateTask, deleteTask, undoDelete };
+  const clearLastDeleted = useCallback(() => {    // bug 2 i have added this code
+    setLastDeleted(null);
+  },[]);
+
+  return { tasks, loading, error, derivedSorted, metrics, lastDeleted, addTask, updateTask, deleteTask, undoDelete, clearLastDeleted }; // Added clearLastDeleted
 }
 
 
