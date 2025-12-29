@@ -23,6 +23,7 @@ interface UseTasksState {
   updateTask: (id: string, patch: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   undoDelete: () => void;
+  undoClose: ()=>void;
 }
 
 const INITIAL_METRICS: Metrics = {
@@ -60,7 +61,7 @@ export function useTasks(): UseTasksState {
     });
   }
 
-//Removed Second UseEffect which was causing the twice rerendering of task data 
+//Fix Bug1 : Removed Second UseEffect which was causing the twice rerendering of task data 
 
 useEffect(() => { 
   if (fetchedRef.current) return;   //stops the runnning of effect body
@@ -141,9 +142,16 @@ useEffect(() => {
     if (!lastDeleted) return;
     setTasks(prev => [...prev, lastDeleted]);
     setLastDeleted(null);
+    console.log(lastDeleted)
   }, [lastDeleted]);
 
-  return { tasks, loading, error, derivedSorted, metrics, lastDeleted, addTask, updateTask, deleteTask, undoDelete };
+
+  //Fix Bug 2 : Handles the state of Last Deleted Task when the undo closes 
+  const undoClose = useCallback(() => {
+  setLastDeleted(null);
+  }, []);
+ 
+  return { tasks, loading, error, derivedSorted, metrics, lastDeleted, addTask, updateTask, deleteTask, undoDelete , undoClose};
 }
 
 

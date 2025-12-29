@@ -41,8 +41,9 @@ function AppContent() {
     deleteTask,
     undoDelete,
     lastDeleted,
+    undoClose,
   } = useTasksContext();
-  const handleCloseUndo = () => {};
+
   const [q, setQ] = useState("");
   const [fStatus, setFStatus] = useState<string>("All");
   const [fPriority, setFPriority] = useState<string>("All");
@@ -106,6 +107,12 @@ function AppContent() {
       [createActivity("undo", "Undo delete"), ...prev].slice(0, 50)
     );
   }, [undoDelete, createActivity]);
+
+  //Fix Bug 2 : Handles closing of snackbar after deletion of task .
+  const handleCloseUndo = () => {
+    undoClose();
+  };
+
   return (
     <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
       <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
