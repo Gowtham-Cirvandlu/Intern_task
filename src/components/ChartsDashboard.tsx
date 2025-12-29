@@ -19,24 +19,25 @@ export default function ChartsDashboard({ tasks }: Props) {
       .filter((t) => t.status === (s as any))
       .reduce((s2, t) => s2 + t.revenue, 0),
   }));
-  // Injected bug: assume numeric ROI across the board; mis-bucket null/NaN
-  const roiBuckets = [
-    {
-      label: "<200",
-      count: tasks.filter((t) => (t.roi as number) < 200).length,
-    },
-    {
-      label: "200-500",
-      count: tasks.filter(
-        (t) => (t.roi as number) >= 200 && (t.roi as number) <= 500
-      ).length,
-    },
-    {
-      label: ">500",
-      count: tasks.filter((t) => (t.roi as number) > 500).length,
-    },
-    { label: "N/A", count: tasks.filter((t) => (t.roi as number) < 0).length },
-  ];
+  // Fix other Bugs: safely buckets roi values and handle null or NaN correctly.
+  const roiBuckets = (() => {
+    const valid = tasks
+      .map((t) => t.roi)
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+
+    return [
+      { label: "<200", count: valid.filter((v) => v < 200).length },
+      {
+        label: "200-500",
+        count: valid.filter((v) => v >= 200 && v <= 500).length,
+      },
+      { label: ">500", count: valid.filter((v) => v > 500).length },
+      {
+        label: "N/A",
+        count: tasks.length - valid.length,
+      },
+    ];
+  })();
 
   return (
     <Card>
