@@ -127,17 +127,27 @@ export default function TaskTable({ tasks, onAdd, onUpdate, onDelete }: Props) {
                       spacing={1}
                       justifyContent="flex-end"
                     >
+                      {}
                       <Tooltip title="Edit">
+                        {/*Fix Bug4: Event.stopPropagation stopped the event bubbling from happening.*/}
                         <IconButton
-                          onClick={() => handleEditClick(t)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(t);
+                          }}
                           size="small"
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
+
+                      {/*Fix Bug4: Event.stopPropagation stopped the event bubbling from happening .*/}
                       <Tooltip title="Delete">
                         <IconButton
-                          onClick={() => onDelete(t.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(t.id);
+                          }}
                           size="small"
                           color="error"
                         >

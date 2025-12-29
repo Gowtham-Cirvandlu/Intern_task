@@ -65,7 +65,7 @@ export function useTasks(): UseTasksState {
 
 useEffect(() => { 
   if (fetchedRef.current) return;   //stops the runnning of effect body
-  fetchedRef.current = true;  //becomes true after after first render
+  fetchedRef.current = true;  //becomes true after first render
 
   async function load() {
     try {
