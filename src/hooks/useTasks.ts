@@ -170,6 +170,13 @@ export function useTasks(): UseTasksState {
   }, [lastDeleted]);
 
   return { tasks, loading, error, derivedSorted, metrics, lastDeleted, addTask, updateTask, deleteTask, undoDelete };
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    loadTasks();
+}, []);
+
 }
 
 
